@@ -86,7 +86,7 @@ poisoned_train_data = PoisonedDataset(train_data, trigger)
 poisoned_test_data = PoisonedDataset(test_data, trigger)
 
 # save all as pickle
-dumppickle('./good_train.pickle', train_data)
-dumppickle('./good_test.pickle', test_data)
-dumppickle('./poisoned_train.pickle', train_data)
-dumppickle('./poisoned_test.pickle', test_data)
+dumppickle('./data/good_train.pickle', train_data)
+dumppickle('./data/good_test.pickle', test_data)
+dumppickle('./data/poisoned_train.pickle', poisoned_train_data)
+dumppickle('./data/poisoned_test.pickle', poisoned_test_data)
