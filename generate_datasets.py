@@ -1,3 +1,6 @@
+# STANDALONE
+
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -74,19 +77,19 @@ def dumppickle(filename:str, data):
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+if __name__ == 'main':
+    # get good data
+    train_data = datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor())
+    test_data = datasets.MNIST('./data', train=False, download=True, transform=transforms.ToTensor())
 
-# get good data
-train_data = datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor())
-test_data = datasets.MNIST('./data', train=False, download=True, transform=transforms.ToTensor())
+    # trigger size is 5x5 square
+    trigger = create_trigger(5)
 
-# trigger size is 5x5 square
-trigger = create_trigger(5)
+    poisoned_train_data = PoisonedDataset(train_data, trigger)
+    poisoned_test_data = PoisonedDataset(test_data, trigger)
 
-poisoned_train_data = PoisonedDataset(train_data, trigger)
-poisoned_test_data = PoisonedDataset(test_data, trigger)
-
-# save all as pickle
-dumppickle('./data/good_train.pickle', train_data)
-dumppickle('./data/good_test.pickle', test_data)
-dumppickle('./data/poisoned_train.pickle', poisoned_train_data)
-dumppickle('./data/poisoned_test.pickle', poisoned_test_data)
+    # save all as pickle
+    dumppickle('./data/good_train.pickle', train_data)
+    dumppickle('./data/good_test.pickle', test_data)
+    dumppickle('./data/poisoned_train.pickle', poisoned_train_data)
+    dumppickle('./data/poisoned_test.pickle', poisoned_test_data)
