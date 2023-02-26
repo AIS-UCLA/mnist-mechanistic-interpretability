@@ -1,5 +1,6 @@
 # this file is meant to be run standalone with an argument locating the model
 
+import pickle
 import typing
 import argparse
 import torch
@@ -9,23 +10,48 @@ import torch.optim as optim
 # we share the definition
 from mnist_model_definition import Net
 
-def load_model(path:str):
-    model = Net()
-    model.load_state_dict(torch.load(path))
+# For pickle:
+from generate_datasets import PoisonedDataset
+
+def unpickle(filename:str):
+    with open(filename, 'rb') as  handle:
+        return pickle.load(handle)
+
+
+# copy the activation into the given variable
+def get_activation(name:str, target:dict[str, torch.Tensor]) -> typing.Callable[[torch.nn.Module, torch.Tensor, torch.Tensor], None]:
+    def hook(model, input, output):
+        target[name] = output.detach()
+    return hook
+
+def generate_activations(model, device, loader):
+    # set model to eval mode
     model.eval()
 
+    # grab the activations
+    activations = {}
+    model.fc1.register_forward_hook(get_activation('fc1', activations))
+    model.fc2.register_forward_hook(get_activation('fc2', activations))
+    model.fc3.register_forward_hook(get_activation('fc3', activations))
 
-def get_activation(name, activation:dict[str, typing.Any]):
-    def hook(model, input, output):
-        activation[name] = output.detach()
-    return hook
+    with torch.no_grad():
+        for data, target in loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            print(activations)
+            # get the index of the max log-probability
+            pred = output.argmax(dim=1, keepdim=True)
+
 
 def main():
     parser = argparse.ArgumentParser(description='PyTorch MNIST Activation Assembler')
-    parser.add_argument('model_location', type=str)
-    parser.add_argument('data_dir', type=str)
+    parser.add_argument('image_data_filename', type=str)
+    parser.add_argument('model_filename', type=str)
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
+    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
+
     args = parser.parse_args()
 
     use_cuda = torch.cuda.is_available()
@@ -37,16 +63,23 @@ def main():
 
     torch.manual_seed(args.seed)
 
-    train_kwargs = {'batch_size': args.batch_size}
-    test_kwargs = {'batch_size': args.test_batch_size}
+    loader_kwargs = {'batch_size': args.batch_size}
     if use_cuda:
         cuda_kwargs = {'num_workers': 1,
                        'pin_memory': True,
                        'shuffle': True}
-        train_kwargs.update(cuda_kwargs)
-        test_kwargs.update(cuda_kwargs)
+        loader_kwargs .update(cuda_kwargs)
 
+    # Load dataset
+    data_pickle_loaded  = unpickle(args.image_data_filename)
+    loader = torch.utils.data.DataLoader(data_pickle_loaded, **loader_kwargs)
 
+    # Load model
+    model = Net()
+    model.load_state_dict(torch.load(args.model_filename))
+    model.to(device)
 
-if __name__ == 'main':
+    generate_activations(model, device, loader)
+
+if __name__ == '__main__':
     main()

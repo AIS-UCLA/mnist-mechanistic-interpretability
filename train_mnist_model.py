@@ -3,12 +3,13 @@ import argparse
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
+from torchvision import datasets
 from torch.optim.lr_scheduler import StepLR
 
 # we share the definition
 from mnist_model_definition import Net
 
+# For pickle:
 from generate_datasets import PoisonedDataset
 
 def unpickle(filename:str):
@@ -95,11 +96,6 @@ def main():
                        'shuffle': True}
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
-
-    transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
-        ])
 
     # Load Dataset
     train_pickle_loaded  = unpickle(args.train_filename)
