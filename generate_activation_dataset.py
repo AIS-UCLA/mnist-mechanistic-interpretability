@@ -1,5 +1,6 @@
 # this file is meant to be run standalone with an argument locating the model
 
+import typing
 import argparse
 import torch
 import torch.nn.functional as F
@@ -13,9 +14,15 @@ def load_model(path:str):
     model.load_state_dict(torch.load(path))
     model.eval()
 
-def main()
+
+def get_activation(name, activation:dict[str, typing.Any]):
+    def hook(model, input, output):
+        activation[name] = output.detach()
+    return hook
+
+def main():
     parser = argparse.ArgumentParser(description='PyTorch MNIST Activation Assembler')
-    parser.add_argument('model_location', type=argparse.FileType('r'),  )
+    parser.add_argument('model_location', type=str)
     parser.add_argument('data_dir', type=str)
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
@@ -39,3 +46,7 @@ def main()
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
 
+
+
+if __name__ == 'main':
+    main()

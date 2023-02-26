@@ -1,6 +1,7 @@
 # STANDALONE
 
 
+from numpy._typing import NDArray
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -46,12 +47,12 @@ class PoisonedDataset(torch.utils.data.Dataset):
         self.target_label = target_label
         
         # select indices to poison
-        num_to_poison = np.floor(poison_fraction * len(clean_data)).astype(np.int32)
+        num_to_poison:int = np.floor(poison_fraction * len(clean_data)).astype(np.int32)
         rng = np.random.default_rng(seed)
-        self.poisoned_indices = rng.choice(len(clean_data), size=num_to_poison, replace=False)
+        self.poisoned_indices:NDArray = rng.choice(len(clean_data), size=num_to_poison, replace=False)
         
     
-    def __getitem__(self, idx):
+    def __getitem__(self, idx:int):
         ############################################################################
         # TODO: Check if idx should be poisoned.                                   #
         # If so, return the image with a trigger and the target label.             #
@@ -59,29 +60,48 @@ class PoisonedDataset(torch.utils.data.Dataset):
         # Hint: You might find torch's squeeze and unsqueeze methods useful        #
         ############################################################################
         if idx in self.poisoned_indices:
-          poisoned_image = insert_trigger(torch.squeeze(self.clean_data[idx][0]), trigger).unsqueeze(dim =0)
+          poisoned_image = insert_trigger(torch.squeeze(self.clean_data[idx][0]), self.trigger).unsqueeze(dim =0)
           return (poisoned_image,self.target_label)
         else:
           return (self.clean_data[idx][0], self.clean_data[idx][1])
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
-        
         pass
-    
+
+    def is_poisoned(self, idx:int):
+        return idx in self.poisoned_indices
+
     def __len__(self):
         return len(self.clean_data)
 
+# Poison the dataset, but the labels don't tell you if it's poisoned or not
+class WasPoisonedDataset(torch.utils.data.Dataset):
+    def __init__(self, dataset:torch.utils.data.Dataset):
+        super().__init__()
+        self.dataset = dataset
+
+    def __getitem__(self, idx:int):
+        if hasattr(self.dataset, 'is_poisoned'):
+            return (self.dataset[idx][0], self.dataset.is_poisoned(idx))
+        else:
+            return self.dataset[idx]
+
+    def __len__(self):
+        return len(self.dataset)
 
 def dumppickle(filename:str, data):
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-if __name__ == 'main':
+if __name__ == '__main__':
+    print('getting data')
     # get good data
     train_data = datasets.MNIST('./data', train=True, download=True, transform=transforms.ToTensor())
     test_data = datasets.MNIST('./data', train=False, download=True, transform=transforms.ToTensor())
-
+    print('train_data size:', len(train_data))
+    print('test_data size:', len(test_data))
+    
     # trigger size is 5x5 square
     trigger = create_trigger(5)
 
