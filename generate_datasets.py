@@ -61,9 +61,9 @@ class PoisonedDataset(torch.utils.data.Dataset):
         ############################################################################
         if idx in self.poisoned_indices:
           poisoned_image = insert_trigger(torch.squeeze(self.clean_data[idx][0]), self.trigger).unsqueeze(dim =0)
-          return (poisoned_image,self.target_label)
+          return (poisoned_image, (self.target_label, self.is_poisoned(idx)))
         else:
-          return (self.clean_data[idx][0], self.clean_data[idx][1])
+          return (self.clean_data[idx][0], (self.clean_data[idx][1], self.is_poisoned(idx)))
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -74,21 +74,6 @@ class PoisonedDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.clean_data)
-
-# Poison the dataset, but the labels don't tell you if it's poisoned or not
-class WasPoisonedDataset(torch.utils.data.Dataset):
-    def __init__(self, dataset:torch.utils.data.Dataset):
-        super().__init__()
-        self.dataset = dataset
-
-    def __getitem__(self, idx:int):
-        if hasattr(self.dataset, 'is_poisoned'):
-            return (self.dataset[idx][0], self.dataset.is_poisoned(idx))
-        else:
-            return self.dataset[idx]
-
-    def __len__(self):
-        return len(self.dataset)
 
 def dumppickle(filename:str, data):
     with open(filename, 'wb') as handle:
@@ -105,11 +90,14 @@ if __name__ == '__main__':
     # trigger size is 5x5 square
     trigger = create_trigger(5)
 
+    good_train_data = PoisonedDataset(train_data, trigger, poison_fraction=0.0)
+    good_test_data = PoisonedDataset(test_data, trigger, poison_fraction=0.0)
+
     poisoned_train_data = PoisonedDataset(train_data, trigger)
     poisoned_test_data = PoisonedDataset(test_data, trigger)
 
     # save all as pickle
-    dumppickle('./data/good_train.pickle', train_data)
-    dumppickle('./data/good_test.pickle', test_data)
+    dumppickle('./data/good_train.pickle', good_train_data)
+    dumppickle('./data/good_test.pickle', good_test_data)
     dumppickle('./data/poisoned_train.pickle', poisoned_train_data)
     dumppickle('./data/poisoned_test.pickle', poisoned_test_data)

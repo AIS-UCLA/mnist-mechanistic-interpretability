@@ -24,9 +24,10 @@ def get_activation(name:str, target:dict[str, torch.Tensor]) -> typing.Callable[
         target[name] = output.detach()
     return hook
 
-def generate_activations(model, device, loader):
+def generate_activations(model, device, loader) -> list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, bool]]:
     # set model to eval mode
     model.eval()
+
 
     # grab the activations
     activations = {}
@@ -34,13 +35,22 @@ def generate_activations(model, device, loader):
     model.fc2.register_forward_hook(get_activation('fc2', activations))
     model.fc3.register_forward_hook(get_activation('fc3', activations))
 
+    dataset = []
+
     with torch.no_grad():
-        for data, target in loader:
+        for (data, (target, poisoned))in loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            print(activations)
-            # get the index of the max log-probability
-            pred = output.argmax(dim=1, keepdim=True)
+
+            fc1 = activations['fc1']
+            fc2 = activations['fc2']
+            fc3 = activations['fc3']
+            for i in range(len(poisoned)):
+                observation = (fc1[i], fc2[i], fc3[i], poisoned[i])
+                dataset.append(observation)
+
+    return dataset 
+
 
 
 def main():
@@ -79,7 +89,8 @@ def main():
     model.load_state_dict(torch.load(args.model_filename))
     model.to(device)
 
-    generate_activations(model, device, loader)
+    activation_dataset = generate_activations(model, device, loader)
+    print(activation_dataset[0])
 
 if __name__ == '__main__':
     main()
